@@ -19,6 +19,7 @@ public class InputSystemController : MonoBehaviour
 
     public InputActionReference move;
     public InputActionReference jump;
+    public InputActionReference look;
 
     private void Awake()
     {
@@ -26,7 +27,6 @@ public class InputSystemController : MonoBehaviour
         jumpCounter = 0;
     }
 
-    // Update is called once per frame
     void Update()
     {
         moveDirection = move.action.ReadValue<Vector2>();
@@ -40,19 +40,13 @@ public class InputSystemController : MonoBehaviour
     private void OnEnable()
     {
         jump.action.performed += onJumpPerformed;
+        look.action.performed += onLookPerformed;
     }
 
     private void OnDisable()
     {
         jump.action.performed -= onJumpPerformed;
-    }
-
-    public void onJumpPerformed(InputAction.CallbackContext context) {
-        if ((isGrounded || jumpCounter < 2) && coyoteTimeCounter > 0)
-        {
-            rb.AddForce(Vector3.up * jumpheight, ForceMode.Impulse);
-            jumpCounter += 1;
-        }
+        look.action.performed -= onLookPerformed;
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -66,5 +60,18 @@ public class InputSystemController : MonoBehaviour
     {
         isGrounded = false;
         coyoteTimeCounter -= Time.deltaTime;
+    }
+
+    public void onJumpPerformed(InputAction.CallbackContext context)
+    {
+        if ((isGrounded || jumpCounter < 2) && coyoteTimeCounter > 0)
+        {
+            rb.AddForce(Vector3.up * jumpheight, ForceMode.Impulse);
+            jumpCounter += 1;
+        }
+    }
+
+    public void onLookPerformed(InputAction.CallbackContext context) {
+        
     }
 }
