@@ -18,9 +18,6 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private InputActionReference pauseAction;
 
-    [SerializeField]
-    private GameObject mofeta;
-
     bool isPaused = false;
 
     private void Awake()

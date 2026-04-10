@@ -606,6 +606,7 @@ MonoBehaviour:
   button: {fileID: 1386753193}
   menu: {fileID: 2006417678}
   pauseAction: {fileID: 539866865780079243, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  mofeta: {fileID: 817963725}
 --- !u!4 &803254985
 Transform:
   m_ObjectHideFlags: 0
