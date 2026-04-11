@@ -1,8 +1,11 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.XR;
 
 public class InputSystemController : MonoBehaviour
 {
+
+    //TODO el moviemiento hacia delnate y atras funciona con mando, con teclado el float pasa de 1 a 0 y queda raro
 
     //REVISAR Y ENTENDER BIEN COMO FUNCIONA LO DE LA ROTACION DE LA CAMARA
     private Rigidbody rb;
@@ -21,16 +24,20 @@ public class InputSystemController : MonoBehaviour
     public InputActionReference jump;
     public InputActionReference look;
 
+    [SerializeField] Animator animator;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
         jumpCounter = 0;
         cameraTransform = Camera.main.transform;
+        
     }
 
     void Update()
     {
         moveInput = move.action.ReadValue<Vector2>();
+        animator.SetFloat("Move", moveInput.y);
     }
 
     private void FixedUpdate()
@@ -46,16 +53,14 @@ public class InputSystemController : MonoBehaviour
 
         // Dirección de movimiento relativa a la cámara
         Vector3 moveDirection = camForward * moveInput.y + camRight * moveInput.x;
-
-        // Mover manteniendo la velocidad vertical del salto
-
-        // Para la parte de la animacion este moveDirection es un Vector 3 con 2 float dentro que le indican al juego la velocidad del personaje
-        // en el animator hay que crear una variable para controlar el blend tree para la transicion entre animaciones
+        
         rb.linearVelocity = new Vector3(
             moveDirection.x * speed,
             rb.linearVelocity.y,
             moveDirection.z * speed
         );
+
+        Debug.Log(rb.linearVelocity);
 
         // Rotar el personaje hacia donde se mueve
         Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
