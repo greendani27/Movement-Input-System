@@ -37,7 +37,10 @@ public class InputSystemController : MonoBehaviour
     void Update()
     {
         moveInput = move.action.ReadValue<Vector2>();
-        animator.SetFloat("Move", moveInput.y);
+        animator.SetFloat("MoveY", moveInput.y);
+        animator.SetFloat("MoveX", moveInput.x);
+
+        Debug.Log(moveInput.x);
     }
 
     private void FixedUpdate()
