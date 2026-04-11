@@ -48,6 +48,9 @@ public class InputSystemController : MonoBehaviour
         Vector3 moveDirection = camForward * moveInput.y + camRight * moveInput.x;
 
         // Mover manteniendo la velocidad vertical del salto
+
+        // Para la parte de la animacion este moveDirection es un Vector 3 con 2 float dentro que le indican al juego la velocidad del personaje
+        // en el animator hay que crear una variable para controlar el blend tree para la transicion entre animaciones
         rb.linearVelocity = new Vector3(
             moveDirection.x * speed,
             rb.linearVelocity.y,
