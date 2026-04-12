@@ -36,8 +36,6 @@ public class InputSystemController : MonoBehaviour
         moveInput = move.action.ReadValue<Vector2>();
         animator.SetFloat("MoveY", moveInput.y);
         animator.SetFloat("MoveX", moveInput.x);
-
-        Debug.Log(moveInput.x);
     }
 
     private void FixedUpdate()
@@ -60,8 +58,6 @@ public class InputSystemController : MonoBehaviour
             moveDirection.z * speed
         );
 
-        Debug.Log(rb.linearVelocity);
-
         // Rotar el personaje hacia donde se mueve
         Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
         rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime));
@@ -69,12 +65,12 @@ public class InputSystemController : MonoBehaviour
 
     private void OnEnable()
     {
-        jump.action.performed += onJumpPerformed;
+        jump.action.performed += OnJumpPerformed;
     }
 
     private void OnDisable()
     {
-        jump.action.performed -= onJumpPerformed;
+        jump.action.performed -= OnJumpPerformed;
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -91,7 +87,7 @@ public class InputSystemController : MonoBehaviour
         coyoteTimeCounter -= Time.deltaTime;
     }
 
-    public void onJumpPerformed(InputAction.CallbackContext context)
+    public void OnJumpPerformed(InputAction.CallbackContext context)
     {
         if ((isGrounded || jumpCounter < 2) && coyoteTimeCounter > 0)
         {
@@ -100,5 +96,10 @@ public class InputSystemController : MonoBehaviour
 
             animator.SetBool("Jump", true);
         }
+    }
+
+    public void OnCrouchPerformed(InputAction.CallbackContext context) {
+        if (context.started) animator.SetBool("Crouch", true);
+        if (context.canceled) animator.SetBool("Crouch", false);
     }
 }
