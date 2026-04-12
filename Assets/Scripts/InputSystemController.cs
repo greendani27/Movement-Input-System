@@ -4,9 +4,6 @@ using UnityEngine.XR;
 
 public class InputSystemController : MonoBehaviour
 {
-
-    //TODO el moviemiento hacia delnate y atras funciona con mando, con teclado el float pasa de 1 a 0 y queda raro
-
     //REVISAR Y ENTENDER BIEN COMO FUNCIONA LO DE LA ROTACION DE LA CAMARA
     private Rigidbody rb;
     private bool isGrounded;
@@ -85,6 +82,7 @@ public class InputSystemController : MonoBehaviour
         isGrounded = true;
         coyoteTimeCounter = coyoteTime;
         jumpCounter = 0;
+        animator.SetBool("Jump", false);
     }
 
     private void OnCollisionExit(Collision collision)
@@ -99,6 +97,8 @@ public class InputSystemController : MonoBehaviour
         {
             rb.AddForce(Vector3.up * jumpheight, ForceMode.Impulse);
             jumpCounter += 1;
+
+            animator.SetBool("Jump", true);
         }
     }
 }
