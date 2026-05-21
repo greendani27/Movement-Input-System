@@ -1,16 +1,18 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.XR;
 
 public class InputSystemController : MonoBehaviour
 {
-    //REVISAR Y ENTENDER BIEN COMO FUNCIONA LO DE LA ROTACION DE LA CAMARA
     private Rigidbody rb;
     private bool isGrounded;
     private float jumpCounter;
     private float coyoteTimeCounter;
+    private float speed;
+    private bool isRunning;
+
     public float coyoteTime;
-    public float speed;
+    public float runSpeed;
+    public float walkSpeed;
     public float jumpheight;
     public float rotationSpeed = 10f;
 
@@ -20,6 +22,7 @@ public class InputSystemController : MonoBehaviour
     public InputActionReference move;
     public InputActionReference jump;
     public InputActionReference look;
+    public InputActionReference run; // ← Asigna tu acción de Shift/L3 aquí
 
     [SerializeField] Animator animator;
 
@@ -28,19 +31,41 @@ public class InputSystemController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         jumpCounter = 0;
         cameraTransform = Camera.main.transform;
-        
+        speed = walkSpeed;
     }
 
     void Update()
     {
         moveInput = move.action.ReadValue<Vector2>();
-        animator.SetFloat("MoveY", moveInput.y);
-        animator.SetFloat("MoveX", moveInput.x);
+        UpdateAnimatorSpeed();
+    }
+
+    private void UpdateAnimatorSpeed()
+    {
+        bool isMoving = moveInput.sqrMagnitude > 0.01f;
+
+        if (!isMoving)
+        {
+            animator.SetFloat("Speed", 0f);        // Idle
+        }
+        else if (isRunning)
+        {
+            animator.SetFloat("Speed", 2f);        // Run
+        }
+        else
+        {
+            animator.SetFloat("Speed", 1f);        // Walk
+        }
     }
 
     private void FixedUpdate()
     {
-        if (moveInput.sqrMagnitude < 0.01f) return;
+        if (moveInput.sqrMagnitude < 0.01f)
+        {
+            // Detener movimiento horizontal sin afectar la gravedad
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+            return;
+        }
 
         Vector3 camForward = cameraTransform.forward;
         Vector3 camRight = cameraTransform.right;
@@ -49,16 +74,14 @@ public class InputSystemController : MonoBehaviour
         camForward.Normalize();
         camRight.Normalize();
 
-        // Direcci�n de movimiento relativa a la c�mara
         Vector3 moveDirection = camForward * moveInput.y + camRight * moveInput.x;
-        
+
         rb.linearVelocity = new Vector3(
             moveDirection.x * speed,
             rb.linearVelocity.y,
             moveDirection.z * speed
         );
 
-        // Rotar el personaje hacia donde se mueve
         Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
         rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime));
     }
@@ -66,11 +89,15 @@ public class InputSystemController : MonoBehaviour
     private void OnEnable()
     {
         jump.action.performed += OnJumpPerformed;
+        run.action.started += OnRunPerformed;
+        run.action.canceled += OnRunPerformed;
     }
 
     private void OnDisable()
     {
         jump.action.performed -= OnJumpPerformed;
+        run.action.started -= OnRunPerformed;
+        run.action.canceled -= OnRunPerformed;
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -93,13 +120,27 @@ public class InputSystemController : MonoBehaviour
         {
             rb.AddForce(Vector3.up * jumpheight, ForceMode.Impulse);
             jumpCounter += 1;
-
             animator.SetBool("Jump", true);
         }
     }
 
-    public void OnCrouchPerformed(InputAction.CallbackContext context) {
+    public void OnCrouchPerformed(InputAction.CallbackContext context)
+    {
         if (context.started) animator.SetBool("Crouch", true);
         if (context.canceled) animator.SetBool("Crouch", false);
+    }
+
+    public void OnRunPerformed(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            isRunning = true;
+            speed = runSpeed;
+        }
+        if (context.canceled)
+        {
+            isRunning = false;
+            speed = walkSpeed;
+        }
     }
 }

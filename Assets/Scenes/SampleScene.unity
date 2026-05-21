@@ -947,12 +947,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputSystemController
   coyoteTime: 0.2
-  speed: 4
+  runSpeed: 4
+  walkSpeed: 2
   jumpheight: 5
   rotationSpeed: 5
   move: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   jump: {fileID: -2099379676528639254, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   look: {fileID: -5630151704836100654, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  run: {fileID: -3133725023466382010, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   animator: {fileID: 876934111}
 --- !u!114 &876934116
 MonoBehaviour:
@@ -1071,6 +1073,10 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 75605685-8a29-44b3-8b31-d03a38b21618
     m_ActionName: 'Global/Pause[/Keyboard/escape]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 8a66df50-5adb-4a45-8830-c46f6a5a6244
+    m_ActionName: 'Player/Run[/Keyboard/leftShift,/XInputControllerWindows/leftStickPress]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Player
