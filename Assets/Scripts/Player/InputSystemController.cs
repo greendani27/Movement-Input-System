@@ -10,25 +10,28 @@ public class InputSystemController : MonoBehaviour
     private float speed;
     private bool isRunning;
 
-    public float coyoteTime;
-    public float runSpeed;
-    public float walkSpeed;
-    public float jumpheight;
-    public float rotationSpeed = 10f;
+    [SerializeField] private float coyoteTime;
+    [SerializeField] private float runSpeed;
+    [SerializeField] private float walkSpeed;
+    [SerializeField] private float jumpheight;
+    [SerializeField] private float rotationSpeed = 10f;
 
     private Vector2 moveInput;
     private Transform cameraTransform;
 
-    public InputActionReference move;
-    public InputActionReference jump;
-    public InputActionReference look;
-    public InputActionReference run;
 
-    [SerializeField] Animator animator;
+    private PlayerInput playerInput;
+    private InputActionMap playerMap;
+    private InputAction move;
+    private InputAction jump;
+    private InputAction look;
+    private InputAction run;
+
+    [SerializeField] private Animator animator;
 
     [Header("Push Block")]
-    public float pushCheckDistance = 0.75f;
-    public LayerMask pushableLayer;
+    [SerializeField] private float pushCheckDistance = 0.75f;
+    [SerializeField] private LayerMask pushableLayer;
 
     private PushableObject grabbedBlock = null;
     private bool isGrabbing = false;
@@ -41,6 +44,14 @@ public class InputSystemController : MonoBehaviour
         jumpCounter = 0;
         cameraTransform = Camera.main.transform;
         speed = walkSpeed;
+        playerInput = GetComponent<PlayerInput>();
+
+        playerMap = playerInput.actions.FindActionMap("Player");
+
+        move = playerMap.FindAction["Move"];
+        jump = playerMap.FindAction["Jump"];
+        look = playerMap.FindAction["Look"];
+        run = playerMap.FindAction["Run"];
     }
 
     void Update()
