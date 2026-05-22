@@ -1,34 +1,39 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
-[RequireComponent (typeof(Collider), typeof(Rigidbody), typeof(Animator))]
+
+[RequireComponent(typeof(Collider), typeof(Rigidbody), typeof(Animator))]
 public class InputSystemController : MonoBehaviour
 {
+    // ── Estado interno ───────────────────────────────────────────────────────────
     private Rigidbody rb;
     private bool isGrounded;
     private float jumpCounter;
     private float coyoteTimeCounter;
     private float speed;
     private bool isRunning;
+    private Vector2 moveInput;
+    private Transform cameraTransform;
 
+    // ── Parámetros serializados ──────────────────────────────────────────────────
     [SerializeField] private float coyoteTime;
     [SerializeField] private float runSpeed;
     [SerializeField] private float walkSpeed;
     [SerializeField] private float jumpheight;
     [SerializeField] private float rotationSpeed = 10f;
 
-    private Vector2 moveInput;
-    private Transform cameraTransform;
-
-
-    private PlayerInput playerInput;
+    // ── Input System ─────────────────────────────────────────────────────────────
+    [SerializeField] private InputActionAsset playerInput;
     private InputActionMap playerMap;
     private InputAction move;
     private InputAction jump;
     private InputAction look;
     private InputAction run;
+    private InputAction crouch;
 
+    // ── Componentes ──────────────────────────────────────────────────────────────
     [SerializeField] private Animator animator;
 
+    // ── Push Block ───────────────────────────────────────────────────────────────
     [Header("Push Block")]
     [SerializeField] private float pushCheckDistance = 0.75f;
     [SerializeField] private LayerMask pushableLayer;
@@ -38,41 +43,49 @@ public class InputSystemController : MonoBehaviour
     private Vector3 pushAxis;
     private Vector3 snapPosition;
 
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // Lifecycle
+    // ════════════════════════════════════════════════════════════════════════════
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
         jumpCounter = 0;
         cameraTransform = Camera.main.transform;
         speed = walkSpeed;
-        playerInput = GetComponent<PlayerInput>();
 
-        playerMap = playerInput.actions.FindActionMap("Player");
+        playerMap = playerInput.FindActionMap("Player");
 
-        move = playerMap.FindAction["Move"];
-        jump = playerMap.FindAction["Jump"];
-        look = playerMap.FindAction["Look"];
-        run = playerMap.FindAction["Run"];
+        move = playerMap.FindAction("Move");
+        jump = playerMap.FindAction("Jump");
+        look = playerMap.FindAction("Look");
+        run = playerMap.FindAction("Run");
+        crouch = playerMap.FindAction("Crouch");
+    }
+
+    private void OnEnable()
+    {
+        jump.performed += OnJumpPerformed;
+        crouch.started += OnCrouchPerformed;
+        crouch.canceled += OnCrouchPerformed;
+        run.started += OnRunPerformed;
+        run.canceled += OnRunPerformed;
+    }
+
+    private void OnDisable()
+    {
+        jump.performed -= OnJumpPerformed;
+        crouch.started -= OnCrouchPerformed;
+        crouch.canceled -= OnCrouchPerformed;
+        run.started -= OnRunPerformed;
+        run.canceled -= OnRunPerformed;
     }
 
     void Update()
     {
-        moveInput = move.action.ReadValue<Vector2>();
+        moveInput = move.ReadValue<Vector2>();
         UpdateAnimatorSpeed();
-    }
-
-    private void UpdateAnimatorSpeed()
-    {
-        bool isMoving = moveInput.sqrMagnitude > 0.01f;
-
-        if (!isMoving)
-        {
-            animator.SetFloat("Speed", 0f);
-        }
-        else
-        {
-            animator.SetFloat("Speed", speed);
-        }
-
     }
 
     private void FixedUpdate()
@@ -113,20 +126,6 @@ public class InputSystemController : MonoBehaviour
         CheckForBlock(moveDirection);
     }
 
-    private void OnEnable()
-    {
-        jump.action.performed += OnJumpPerformed;
-        run.action.started += OnRunPerformed;
-        run.action.canceled += OnRunPerformed;
-    }
-
-    private void OnDisable()
-    {
-        jump.action.performed -= OnJumpPerformed;
-        run.action.started -= OnRunPerformed;
-        run.action.canceled -= OnRunPerformed;
-    }
-
     private void OnCollisionEnter(Collision collision)
     {
         isGrounded = true;
@@ -140,6 +139,11 @@ public class InputSystemController : MonoBehaviour
         isGrounded = false;
         coyoteTimeCounter -= Time.deltaTime;
     }
+
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // Input Callbacks
+    // ════════════════════════════════════════════════════════════════════════════
 
     public void OnJumpPerformed(InputAction.CallbackContext context)
     {
@@ -170,6 +174,30 @@ public class InputSystemController : MonoBehaviour
             speed = walkSpeed;
         }
     }
+
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // Movimiento
+    // ════════════════════════════════════════════════════════════════════════════
+
+    private void UpdateAnimatorSpeed()
+    {
+        bool isMoving = moveInput.sqrMagnitude > 0.01f;
+
+        if (!isMoving)
+        {
+            animator.SetFloat("Speed", 0f);
+        }
+        else
+        {
+            animator.SetFloat("Speed", speed);
+        }
+    }
+
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // Push Block
+    // ════════════════════════════════════════════════════════════════════════════
 
     private void CheckForBlock(Vector3 moveDirection)
     {
