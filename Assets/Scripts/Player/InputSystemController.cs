@@ -1,16 +1,18 @@
 ﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum PlayerState { Idle, Walking, Running, Jumping, Grabbing }
+
 [RequireComponent(typeof(Collider), typeof(Rigidbody), typeof(Animator))]
 public class InputSystemController : MonoBehaviour
 {
     // ── Estado interno ───────────────────────────────────────────────────────────
     private Rigidbody rb;
+    private PlayerState currentState = PlayerState.Idle;  // ← reemplaza isGrabbing, isRunning
     private bool isGrounded;
     private float jumpCounter;
     private float coyoteTimeCounter;
     private float speed;
-    private bool isRunning;
     private Vector2 moveInput;
     private Transform cameraTransform;
 
@@ -35,10 +37,10 @@ public class InputSystemController : MonoBehaviour
     [SerializeField] private Animator animator;
 
     // ── Push Block ───────────────────────────────────────────────────────────────
-    [SerializeField] private float grabCheckDistance = 1.2f;      // Distancia máxima para detectar el bloque
-    [SerializeField] private LayerMask pushableLayer;             // Layer "Pushable" en el Inspector
+    [SerializeField] private float grabCheckDistance = 1.2f;
+    [SerializeField] private LayerMask pushableLayer;
 
-    private PushableBlock grabbedBlock = null;
+    private PushableObject grabbedBlock = null;
     private bool isGrabbing = false;
 
 
@@ -93,10 +95,10 @@ public class InputSystemController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (isGrabbing)
+        if (currentState == PlayerState.Grabbing)
         {
             HandleBlockPush();
-            return; // El jugador no se mueve libremente
+            return;
         }
 
         if (moveInput.sqrMagnitude < 0.01f)
@@ -145,6 +147,8 @@ public class InputSystemController : MonoBehaviour
 
     public void OnJumpPerformed(InputAction.CallbackContext context)
     {
+        if (currentState == PlayerState.Grabbing) return;
+
         if ((isGrounded || jumpCounter < 2) && coyoteTimeCounter > 0)
         {
             rb.AddForce(Vector3.up * jumpheight, ForceMode.Impulse);
@@ -155,33 +159,31 @@ public class InputSystemController : MonoBehaviour
 
     public void OnCrouchPerformed(InputAction.CallbackContext context)
     {
+        if (currentState == PlayerState.Grabbing) return;
+
         if (context.started) animator.SetBool("Crouch", true);
         if (context.canceled) animator.SetBool("Crouch", false);
     }
 
     public void OnRunPerformed(InputAction.CallbackContext context)
     {
+        if (currentState == PlayerState.Grabbing) return;
+
         if (context.started)
         {
-            isRunning = true;
+            currentState = PlayerState.Running;
             speed = runSpeed;
         }
         if (context.canceled)
         {
-            isRunning = false;
+            currentState = PlayerState.Idle;
             speed = walkSpeed;
         }
     }
     public void OnGrabPerformed(InputAction.CallbackContext context)
     {
-        if (context.started)
-        {
-            TryGrabBlock();
-        }
-        if (context.canceled)
-        {
-            ReleaseBlock();
-        }
+        if (context.started) TryGrabBlock();
+        if (context.canceled) ReleaseBlock();
     }
 
 
@@ -191,16 +193,10 @@ public class InputSystemController : MonoBehaviour
 
     private void UpdateAnimatorSpeed()
     {
-        bool isMoving = moveInput.sqrMagnitude > 0.01f;
+        if (currentState == PlayerState.Grabbing) return;
 
-        if (!isMoving)
-        {
-            animator.SetFloat("Speed", 0f);
-        }
-        else
-        {
-            animator.SetFloat("Speed", speed);
-        }
+        bool isMoving = moveInput.sqrMagnitude > 0.01f;
+        animator.SetFloat("Speed", isMoving ? speed : 0f);
     }
 
 
@@ -208,12 +204,47 @@ public class InputSystemController : MonoBehaviour
     // Push Block
     // ════════════════════════════════════════════════════════════════════════════
 
+    private void TryGrabBlock()
+    {
+        Ray ray = new Ray(transform.position + Vector3.up * 0.5f, transform.forward);
+
+        if (!Physics.Raycast(ray, out RaycastHit hit, grabCheckDistance, pushableLayer))
+            return;
+
+        PushableObject block = hit.collider.GetComponent<PushableObject>();
+        if (block == null) return;
+
+        Vector3 normal = hit.normal;
+        normal.y = 0f;
+        normal.Normalize();
+
+        Vector3 blockPos = hit.collider.transform.position;
+        Vector3 playerPos = transform.position;
+
+        Vector3 snapped = Mathf.Abs(normal.x) > 0.5f
+            ? new Vector3(playerPos.x, playerPos.y, blockPos.z)
+            : new Vector3(blockPos.x, playerPos.y, playerPos.z);
+
+        transform.position = snapped;
+
+        Vector3 toBlock = blockPos - transform.position;
+        toBlock.y = 0f;
+        if (toBlock.sqrMagnitude > 0.001f)
+            transform.rotation = Quaternion.LookRotation(toBlock.normalized);
+
+        grabbedBlock = block;
+        currentState = PlayerState.Grabbing;
+        speed = walkSpeed;
+
+        animator.SetBool("Push", true);
+        animator.SetFloat("Speed", 0f);
+        animator.SetBool("Crouch", false);
+    }
+
     private void HandleBlockPush()
     {
-        if (grabbedBlock == null) return;
+        if (grabbedBlock == null) { ReleaseBlock(); return; }
 
-        // Proyectamos el input sobre el eje permitido del bloque
-        // para que solo el movimiento "hacia adelante/atrás" cuente
         Vector3 camForward = cameraTransform.forward;
         Vector3 camRight = cameraTransform.right;
         camForward.y = 0f;
@@ -221,47 +252,55 @@ public class InputSystemController : MonoBehaviour
         camForward.Normalize();
         camRight.Normalize();
 
+        grabbedBlock.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeRotation;
+
         Vector3 inputDir = camForward * moveInput.y + camRight * moveInput.x;
-        float projected = Vector3.Dot(inputDir, grabbedBlock.transform.position - transform.position);
 
-        grabbedBlock.SetInput(Mathf.Clamp(projected, -1f, 1f));
-
-        // El jugador se mueve igual que el bloque pero con su propio Rigidbody
-        rb.linearVelocity = grabbedBlock.GetComponent<Rigidbody>().linearVelocity;
-    }
-
-    private void TryGrabBlock()
-    {
-        // Lanzamos un ray desde el jugador hacia donde mira
-        Ray ray = new Ray(transform.position + Vector3.up * 0.5f, transform.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, grabCheckDistance, pushableLayer))
+        Vector3 cardinalDir = Vector3.zero;
+        if (inputDir.sqrMagnitude > 0.01f)
         {
-            PushableBlock block = hit.collider.GetComponent<PushableBlock>();
-            if (block == null) return;
-
-            grabbedBlock = block;
-            isGrabbing = true;
-
-            // Calculamos el eje permitido: el que va del jugador al bloque (X o Z)
-            Vector3 toBlock = (hit.collider.transform.position - transform.position).normalized;
-            Vector3 axis = Mathf.Abs(toBlock.x) > Mathf.Abs(toBlock.z)
-                              ? new Vector3(Mathf.Sign(toBlock.x), 0, 0)
-                              : new Vector3(0, 0, Mathf.Sign(toBlock.z));
-
-            block.StartPush(axis);
-            animator.SetBool("Push", true);
+            if (Mathf.Abs(inputDir.x) > Mathf.Abs(inputDir.z))
+                cardinalDir = new Vector3(Mathf.Sign(inputDir.x), 0f, 0f);
+            else
+                cardinalDir = new Vector3(0f, 0f, Mathf.Sign(inputDir.z));
         }
+
+        // ── Calculamos la velocidad deseada UNA sola vez ─────────────────────────
+        // Si no hay input cardinalDir es Vector3.zero → velocidad 0 en ambos
+        Vector3 desiredVelocity = cardinalDir * walkSpeed;
+
+        // ── Se la aplicamos al bloque Y al jugador en el mismo frame ─────────────
+        grabbedBlock.SetVelocity(desiredVelocity);
+
+        rb.linearVelocity = new Vector3(
+            desiredVelocity.x,
+            rb.linearVelocity.y,   // conservamos la gravedad
+            desiredVelocity.z
+        );
+
+        // ── Rotación del jugador mirando siempre al bloque ───────────────────────
+        Vector3 toBlock = grabbedBlock.transform.position - transform.position;
+        toBlock.y = 0f;
+        if (toBlock.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(toBlock.normalized);
+            rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRot,
+                            rotationSpeed * Time.fixedDeltaTime));
+        }
+
+        // ── Animación ────────────────────────────────────────────────────────────
+        animator.SetFloat("Speed", desiredVelocity.sqrMagnitude > 0.01f ? 1f : 0f);
     }
 
     private void ReleaseBlock()
     {
         if (grabbedBlock != null)
         {
-            grabbedBlock.StopPush();
+            grabbedBlock.Stop();
             grabbedBlock = null;
         }
-        isGrabbing = false;
+
+        currentState = PlayerState.Idle;
         animator.SetBool("Push", false);
     }
 }
