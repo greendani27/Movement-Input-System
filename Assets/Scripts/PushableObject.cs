@@ -1,13 +1,14 @@
 ﻿using UnityEngine;
 
-public class PushableObject : MonoBehaviour
+public class PushableBlock : MonoBehaviour
 {
     [Header("Configuración")]
-    public float moveSpeed = 1.5f;
+    public float moveSpeed = 2f;
+    public float snapDistance = 0.05f; // Distancia mínima para hacer snap a grid
 
     private Rigidbody rb;
     private bool isBeingPushed = false;
-    private Vector3 allowedAxis;
+    private Vector3 allowedAxis; // El eje en que se puede mover este bloque en este agarre
     private float inputValue;
 
     private void Awake()
@@ -20,6 +21,7 @@ public class PushableObject : MonoBehaviour
     {
         isBeingPushed = true;
         allowedAxis = axis;
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
     }
 
     public void StopPush()
@@ -34,19 +36,14 @@ public class PushableObject : MonoBehaviour
         inputValue = value;
     }
 
-    public Vector3 GetVelocity() => rb.linearVelocity;
-
     private void FixedUpdate()
     {
-        if (!isBeingPushed)
-        {
-            rb.linearVelocity = Vector3.zero;
-            return;
-        }
+        if (!isBeingPushed) return;
 
         rb.linearVelocity = allowedAxis * inputValue * moveSpeed;
     }
 
+    // Hace snap al grid más cercano para que no quede en posiciones extrañas
     private void SnapToGrid()
     {
         Vector3 pos = transform.position;
