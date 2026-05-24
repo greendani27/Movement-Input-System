@@ -8,7 +8,7 @@ public class InputSystemController : MonoBehaviour
 {
     // ── Estado interno ───────────────────────────────────────────────────────────
     private Rigidbody rb;
-    private PlayerState currentState = PlayerState.Idle;  // ← reemplaza isGrabbing, isRunning
+    private PlayerState currentState = PlayerState.Idle;
     private bool isGrounded;
     private float jumpCounter;
     private float coyoteTimeCounter;
@@ -42,6 +42,11 @@ public class InputSystemController : MonoBehaviour
 
     private PushableObject grabbedBlock = null;
     private bool isGrabbing = false;
+
+    // ── Interact Highlight ────────────────────────────────────────────────────────
+    [SerializeField] private float interactCheckDistance = 2f;
+    [SerializeField] private GameObject interactUI;
+    private IInteractable currentLookedAt = null;
 
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -87,10 +92,11 @@ public class InputSystemController : MonoBehaviour
         grab.canceled -= OnGrabPerformed;
     }
 
-    void Update()
+    private void Update()
     {
         moveInput = move.ReadValue<Vector2>();
         UpdateAnimatorSpeed();
+        CheckInteractableLook();
     }
 
     private void FixedUpdate()
@@ -180,6 +186,7 @@ public class InputSystemController : MonoBehaviour
             speed = walkSpeed;
         }
     }
+
     public void OnGrabPerformed(InputAction.CallbackContext context)
     {
         if (context.started) TryGrabBlock();
@@ -197,6 +204,37 @@ public class InputSystemController : MonoBehaviour
 
         bool isMoving = moveInput.sqrMagnitude > 0.01f;
         animator.SetFloat("Speed", isMoving ? speed : 0f);
+    }
+
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // Interact Highlight
+    // ════════════════════════════════════════════════════════════════════════════
+
+    private void CheckInteractableLook()
+    {
+        Ray ray = new Ray(transform.position + Vector3.up * 0.5f, transform.forward);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, interactCheckDistance))
+        {
+            IInteractable interactable = hit.collider.GetComponent<IInteractable>();
+
+            if (interactable != null)
+            {
+                if (currentLookedAt != interactable)
+                {
+                    currentLookedAt = interactable;
+                    interactUI.SetActive(true);
+                }
+                return;
+            }
+        }
+
+        if (currentLookedAt != null)
+        {
+            currentLookedAt = null;
+            interactUI.SetActive(false);
+        }
     }
 
 
@@ -265,20 +303,16 @@ public class InputSystemController : MonoBehaviour
                 cardinalDir = new Vector3(0f, 0f, Mathf.Sign(inputDir.z));
         }
 
-        // ── Calculamos la velocidad deseada UNA sola vez ─────────────────────────
-        // Si no hay input cardinalDir es Vector3.zero → velocidad 0 en ambos
         Vector3 desiredVelocity = cardinalDir * walkSpeed;
 
-        // ── Se la aplicamos al bloque Y al jugador en el mismo frame ─────────────
         grabbedBlock.SetVelocity(desiredVelocity);
 
         rb.linearVelocity = new Vector3(
             desiredVelocity.x,
-            rb.linearVelocity.y,   // conservamos la gravedad
+            rb.linearVelocity.y,
             desiredVelocity.z
         );
 
-        // ── Rotación del jugador mirando siempre al bloque ───────────────────────
         Vector3 toBlock = grabbedBlock.transform.position - transform.position;
         toBlock.y = 0f;
         if (toBlock.sqrMagnitude > 0.001f)
@@ -288,7 +322,6 @@ public class InputSystemController : MonoBehaviour
                             rotationSpeed * Time.fixedDeltaTime));
         }
 
-        // ── Animación ────────────────────────────────────────────────────────────
         animator.SetFloat("Speed", desiredVelocity.sqrMagnitude > 0.01f ? 1f : 0f);
     }
 

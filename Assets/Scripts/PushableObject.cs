@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 
-public class PushableObject : MonoBehaviour
+[RequireComponent(typeof(Rigidbody), typeof(Collider))]
+public class PushableObject : MonoBehaviour, IInteractable
 {
     private Rigidbody rb;
 
@@ -21,4 +22,8 @@ public class PushableObject : MonoBehaviour
         rb.angularVelocity = Vector3.zero;
         rb.constraints = RigidbodyConstraints.FreezeAll;
     }
+
+    // ── IInteractable ─────────────────────────────────────────────────────────
+    public void OnLookAt() { }
+    public void OnLookAway() { }
 }
